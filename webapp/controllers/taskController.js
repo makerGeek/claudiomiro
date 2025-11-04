@@ -9,7 +9,6 @@ class TaskController {
     this.config = {
       executor: 'claude',
       maxConcurrent: 5,
-      mode: 'auto',
       push: false,
       sameBranch: false,
       limit: 20
@@ -177,9 +176,7 @@ class TaskController {
         this.config.maxConcurrent = updates.maxConcurrent;
       }
 
-      if (updates.mode && ['auto', 'hard'].includes(updates.mode)) {
-        this.config.mode = updates.mode;
-      }
+      // Note: mode is not supported in claudiomiro CLI
 
       if (typeof updates.push === 'boolean') {
         this.config.push = updates.push;
@@ -225,9 +222,7 @@ class TaskController {
       if (task.config.maxConcurrent) {
         args.push(`--maxConcurrent=${task.config.maxConcurrent}`);
       }
-      if (task.config.mode) {
-        args.push(`--mode=${task.config.mode}`);
-      }
+      // Note: --mode flag doesn't exist in claudiomiro CLI, removed
       if (task.config.push === false) {
         args.push('--push=false');
       }
@@ -239,15 +234,15 @@ class TaskController {
       }
 
       // Spawn claudiomiro process
-      const process = spawn('node', args, {
+      const childProcess = spawn('node', args, {
         cwd: path.join(__dirname, '../..'),
         env: { ...process.env, FORCE_COLOR: '0' }
       });
 
-      task.process = process;
+      task.process = childProcess;
 
       // Handle stdout
-      process.stdout.on('data', (data) => {
+      childProcess.stdout.on('data', (data) => {
         const log = data.toString();
         task.logs.push({ type: 'stdout', message: log, timestamp: new Date().toISOString() });
 
@@ -258,14 +253,14 @@ class TaskController {
       });
 
       // Handle stderr
-      process.stderr.on('data', (data) => {
+      childProcess.stderr.on('data', (data) => {
         const log = data.toString();
         task.logs.push({ type: 'stderr', message: log, timestamp: new Date().toISOString() });
         this.io.emit('taskLog', { taskId, log: { type: 'stderr', message: log } });
       });
 
       // Handle process completion
-      process.on('close', (code) => {
+      childProcess.on('close', (code) => {
         task.completedAt = new Date().toISOString();
 
         if (code === 0) {
@@ -281,7 +276,7 @@ class TaskController {
       });
 
       // Handle process errors
-      process.on('error', (error) => {
+      childProcess.on('error', (error) => {
         task.status = 'failed';
         task.error = error.message;
         task.completedAt = new Date().toISOString();

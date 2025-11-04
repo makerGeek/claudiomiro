@@ -171,7 +171,6 @@ async function loadConfig() {
 // Update config form
 function updateConfigForm(config) {
     document.getElementById('executor').value = config.executor || 'claude';
-    document.getElementById('mode').value = config.mode || 'auto';
     document.getElementById('maxConcurrent').value = config.maxConcurrent || 5;
     document.getElementById('limit').value = config.limit || 20;
     document.getElementById('push').checked = config.push || false;
@@ -182,7 +181,6 @@ function updateConfigForm(config) {
 async function saveSettings() {
     const config = {
         executor: document.getElementById('executor').value,
-        mode: document.getElementById('mode').value,
         maxConcurrent: parseInt(document.getElementById('maxConcurrent').value),
         limit: parseInt(document.getElementById('limit').value),
         push: document.getElementById('push').checked,

@@ -66,6 +66,28 @@ function initWebSocket() {
         }
     });
 
+    socket.on('fileCreated', ({ taskId, file }) => {
+        const task = state.tasks.get(taskId);
+        if (task) {
+            if (!task.files) task.files = [];
+            task.files.push(file);
+
+            // Update task detail view if open
+            const taskModal = document.getElementById('taskModal');
+            if (taskModal.classList.contains('active')) {
+                const currentTaskId = taskModal.dataset.taskId;
+                if (currentTaskId === taskId) {
+                    renderTaskDetails(task);
+                }
+            }
+
+            // Show notification for PDF files
+            if (file.type === '.pdf') {
+                showNotification(`PDF generated: ${file.name}`, 'success');
+            }
+        }
+    });
+
     socket.on('tasksList', (tasks) => {
         state.tasks.clear();
         tasks.forEach(task => state.tasks.set(task.id, task));
@@ -347,6 +369,37 @@ function renderTaskDetails(task) {
             </div>
         ` : ''}
 
+        ${task.files && task.files.length > 0 ? `
+            <div class="task-detail-section">
+                <h3>Generated Files (${task.files.length})</h3>
+                <div class="files-list">
+                    ${task.files.map(file => `
+                        <div class="file-item">
+                            <div class="file-info">
+                                <span class="file-icon">${getFileIcon(file.type)}</span>
+                                <span class="file-name">${escapeHtml(file.name)}</span>
+                                <a href="/api/tasks/${task.id}/files/${encodeURIComponent(file.name)}"
+                                   target="_blank"
+                                   class="file-download"
+                                   download="${file.name}">
+                                    📥 Download
+                                </a>
+                            </div>
+                            ${file.type === '.pdf' || file.type.match(/\.(png|jpg|jpeg|gif|svg)/) ? `
+                                <div class="file-preview">
+                                    <iframe
+                                        src="/api/tasks/${task.id}/files/${encodeURIComponent(file.name)}"
+                                        class="preview-iframe ${file.type === '.pdf' ? 'pdf-preview' : 'image-preview'}"
+                                        title="Preview of ${escapeHtml(file.name)}">
+                                    </iframe>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        ` : ''}
+
         ${task.logs && task.logs.length > 0 ? `
             <div class="task-detail-section">
                 <h3>Logs (${task.logs.length})</h3>
@@ -444,6 +497,22 @@ function getStatusEmoji(status) {
         cancelled: '🚫'
     };
     return emojis[status] || '❓';
+}
+
+function getFileIcon(fileType) {
+    const icons = {
+        '.pdf': '📄',
+        '.png': '🖼️',
+        '.jpg': '🖼️',
+        '.jpeg': '🖼️',
+        '.gif': '🖼️',
+        '.svg': '🖼️',
+        '.html': '🌐',
+        '.json': '📊',
+        '.xml': '📄',
+        '.csv': '📊'
+    };
+    return icons[fileType] || '📎';
 }
 
 function capitalizeFirst(str) {

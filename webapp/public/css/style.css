@@ -560,3 +560,83 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--surface-light);
 }
+
+/* File Preview Styles */
+.files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.file-item {
+    background: var(--background);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+}
+
+.file-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.file-icon {
+    font-size: 1.5rem;
+}
+
+.file-name {
+    flex: 1;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.file-download {
+    padding: 0.5rem 1rem;
+    background: var(--primary-color);
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    transition: background 0.2s;
+}
+
+.file-download:hover {
+    background: var(--primary-hover);
+}
+
+.file-preview {
+    margin-top: 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background: white;
+}
+
+.preview-iframe {
+    width: 100%;
+    border: none;
+    display: block;
+}
+
+.pdf-preview {
+    height: 600px;
+    min-height: 400px;
+}
+
+.image-preview {
+    height: auto;
+    min-height: 300px;
+}
+
+@media (max-width: 768px) {
+    .pdf-preview {
+        height: 400px;
+        min-height: 300px;
+    }
+
+    .file-info {
+        flex-wrap: wrap;
+    }
+}

@@ -36,6 +36,9 @@ app.get('/api/tasks', (req, res) => taskController.getTasks(req, res));
 app.get('/api/tasks/:id', (req, res) => taskController.getTask(req, res));
 app.delete('/api/tasks/:id', (req, res) => taskController.cancelTask(req, res));
 
+// File serving route
+app.get('/api/tasks/:taskId/files/:fileName', (req, res) => taskController.getFile(req, res));
+
 // Configuration routes
 app.get('/api/config', (req, res) => taskController.getConfig(req, res));
 app.post('/api/config', (req, res) => taskController.updateConfig(req, res));

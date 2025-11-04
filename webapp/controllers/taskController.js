@@ -43,6 +43,7 @@ class TaskController {
         completedAt: null,
         logs: [],
         subtasks: [],
+        files: [],
         error: null,
         progress: 0
       };
@@ -339,6 +340,37 @@ class TaskController {
       }
     }
 
+    // Look for file creation patterns
+    const filePatterns = [
+      /(?:Created|Generated|Wrote|Writing|Created file|File created)(?:\s+file)?:\s*([^\s]+\.(?:pdf|png|jpg|jpeg|gif|svg|html|json|xml|csv))/i,
+      /(?:✓|✅)\s+(?:Created|Generated|Wrote)\s+([^\s]+\.(?:pdf|png|jpg|jpeg|gif|svg|html|json|xml|csv))/i,
+      /File created successfully at:\s*([^\s]+)/i,
+      /(?:Saved to|Written to):\s*([^\s]+\.(?:pdf|png|jpg|jpeg|gif|svg|html|json|xml|csv))/i
+    ];
+
+    for (const pattern of filePatterns) {
+      const fileMatch = log.match(pattern);
+      if (fileMatch && fileMatch[1]) {
+        const filePath = fileMatch[1].trim();
+        const fileName = path.basename(filePath);
+        const fileExt = path.extname(fileName).toLowerCase();
+
+        // Check if file not already tracked
+        if (!task.files.find(f => f.path === filePath)) {
+          task.files.push({
+            name: fileName,
+            path: filePath,
+            type: fileExt,
+            createdAt: new Date().toISOString()
+          });
+
+          // Emit file created event
+          this.io.emit('fileCreated', { taskId: task.id, file: task.files[task.files.length - 1] });
+        }
+        break;
+      }
+    }
+
     // Calculate overall progress
     if (task.subtasks.length > 0) {
       const totalProgress = task.subtasks.reduce((sum, st) => sum + st.progress, 0);
@@ -346,6 +378,63 @@ class TaskController {
     }
 
     this.io.emit('taskUpdated', task);
+  }
+
+  /**
+   * Serve a file from the filesystem
+   */
+  async getFile(req, res) {
+    try {
+      const { taskId, fileName } = req.params;
+      const task = this.tasks.get(taskId);
+
+      if (!task) {
+        return res.status(404).json({ error: 'Task not found' });
+      }
+
+      // Find the file in the task's files
+      const file = task.files.find(f => f.name === fileName);
+      if (!file) {
+        return res.status(404).json({ error: 'File not found in task' });
+      }
+
+      // Resolve the file path
+      const filePath = path.isAbsolute(file.path)
+        ? file.path
+        : path.join(process.cwd(), file.path);
+
+      // Check if file exists
+      try {
+        await fs.access(filePath);
+      } catch (error) {
+        return res.status(404).json({ error: 'File not found on filesystem' });
+      }
+
+      // Set appropriate content type
+      const contentTypes = {
+        '.pdf': 'application/pdf',
+        '.png': 'image/png',
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.gif': 'image/gif',
+        '.svg': 'image/svg+xml',
+        '.html': 'text/html',
+        '.json': 'application/json',
+        '.xml': 'application/xml',
+        '.csv': 'text/csv'
+      };
+
+      const contentType = contentTypes[file.type] || 'application/octet-stream';
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Disposition', `inline; filename="${file.name}"`);
+
+      // Stream the file
+      const fileStream = require('fs').createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error('Error serving file:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
 
   /**

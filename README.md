@@ -128,8 +128,9 @@ For best results, your project should have:
 npm install -g claudiomiro
 ```
 
-### Choose Your AI Executor
+### Choose Your Interface
 
+**CLI (Command Line Interface)**
 ```bash
 # Use any of these:
 claudiomiro --claude     # or
@@ -138,6 +139,24 @@ claudiomiro --gemini     # or
 claudiomiro --deep-seek  # or
 claudiomiro --glm        # or
 ```
+
+**Web Interface (NEW!)**
+```bash
+# Start the web interface
+npm run webapp
+
+# Access at http://localhost:3000
+```
+
+The webapp provides:
+- 🖥️ **Modern Web UI** for task submission and monitoring
+- 📊 **Real-time Dashboard** showing task progress and status
+- 🔄 **Live Updates** via WebSockets as tasks execute
+- ⚙️ **Configuration Panel** to customize AI executor and settings
+- 📝 **Task Logs** with detailed execution information
+- 🚀 **Parallel Task Monitoring** with subtask breakdown
+
+See [webapp/README.md](./webapp/README.md) for detailed webapp documentation.
 
 ## Usage Examples
 

@@ -7,7 +7,9 @@
   },
   "scripts": {
     "test": "npx jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "webapp": "node webapp/server.js",
+    "dev:webapp": "node webapp/server.js"
   },
   "keywords": [
     "cli",
@@ -23,6 +25,10 @@
     "@inquirer/prompts": "^7.8.6",
     "boxen": "^5.1.2",
     "chalk": "^4.1.2",
+    "express": "^4.18.2",
+    "socket.io": "^4.6.1",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
     "gradient-string": "^2.0.2",
     "lodash": "^4.17.21",
     "log-symbols": "^4.1.0",

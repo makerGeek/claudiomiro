@@ -210,6 +210,9 @@ class TaskController {
       task.startedAt = new Date().toISOString();
       this.io.emit('taskUpdated', task);
 
+      // Store reference to global process to avoid variable conflicts
+      const globalProcess = process;
+
       // Build command arguments
       const args = [
         path.join(__dirname, '../../index.js'),
@@ -237,7 +240,7 @@ class TaskController {
       // Spawn claudiomiro process
       const childProcess = spawn('node', args, {
         cwd: path.join(__dirname, '../..'),
-        env: { ...process.env, FORCE_COLOR: '0' }
+        env: { ...globalProcess.env, FORCE_COLOR: '0' }
       });
 
       task.process = childProcess;

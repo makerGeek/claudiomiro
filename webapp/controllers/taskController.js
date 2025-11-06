@@ -216,7 +216,8 @@ class TaskController {
       // Build command arguments
       const args = [
         path.join(__dirname, '../../index.js'),
-        `--prompt=${task.prompt}`
+        `--prompt=${task.prompt}`,
+        '--fresh'  // Always start fresh in webapp to avoid interactive prompts
       ];
 
       // Add configuration flags

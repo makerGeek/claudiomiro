@@ -344,6 +344,45 @@ body {
     color: var(--text-secondary);
 }
 
+.task-logs-preview {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: var(--background);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-family: 'Monaco', 'Courier New', monospace;
+    font-size: 0.75rem;
+}
+
+.logs-preview-title {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.875rem;
+}
+
+.log-preview-line {
+    padding: 0.25rem 0;
+    color: var(--text-secondary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+
+.log-error {
+    color: var(--error-color);
+}
+
+.logs-preview-hint {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+    font-family: 'Inter', sans-serif;
+    font-style: italic;
+}
+
 .task-subtasks {
     margin-top: 1rem;
     padding-top: 1rem;

@@ -267,6 +267,9 @@ function createTaskCard(task) {
     const statusEmoji = getStatusEmoji(task.status);
     const formattedDate = formatDate(task.createdAt);
 
+    // Get latest logs for preview
+    const recentLogs = (task.logs || []).slice(-3);
+
     return `
         <div class="task-card" data-task-id="${task.id}">
             <div class="task-card-header">
@@ -276,6 +279,7 @@ function createTaskCard(task) {
                     <div class="task-meta">
                         <span>Created: ${formattedDate}</span>
                         ${task.subtasks.length > 0 ? `<span>Subtasks: ${task.subtasks.length}</span>` : ''}
+                        ${task.logs && task.logs.length > 0 ? `<span>Logs: ${task.logs.length}</span>` : ''}
                     </div>
                 </div>
                 <div class="task-status ${statusClass}">
@@ -289,6 +293,17 @@ function createTaskCard(task) {
                         <div class="progress-fill" style="width: ${task.progress}%"></div>
                     </div>
                     <div class="progress-text">${task.progress}% complete</div>
+                </div>
+            ` : ''}
+            ${recentLogs.length > 0 && task.status === 'running' ? `
+                <div class="task-logs-preview">
+                    <div class="logs-preview-title">Latest Activity:</div>
+                    ${recentLogs.map(log => `
+                        <div class="log-preview-line ${log.type === 'stderr' ? 'log-error' : ''}">
+                            ${escapeHtml(log.message.substring(0, 100))}${log.message.length > 100 ? '...' : ''}
+                        </div>
+                    `).join('')}
+                    <div class="logs-preview-hint">Click to view full logs →</div>
                 </div>
             ` : ''}
             ${task.subtasks.length > 0 ? `

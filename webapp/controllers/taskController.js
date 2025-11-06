@@ -301,7 +301,31 @@ class TaskController {
    * Parse logs to extract progress information
    */
   parseLogForProgress(task, log) {
-    // Look for subtask patterns in logs
+    // Look for general step indicators (for non-parallel tasks)
+    const stepMatches = [
+      { pattern: /Cycle \d+.*Step 0/i, progress: 10 },
+      { pattern: /Step 0.*completed|Decomposing|INITIAL_PROMPT\.md/i, progress: 15 },
+      { pattern: /Cycle \d+.*Step 2|Creating TODO/i, progress: 25 },
+      { pattern: /Step 2.*completed|TODO\.md.*created/i, progress: 35 },
+      { pattern: /Cycle \d+.*Step 3|Implementing/i, progress: 45 },
+      { pattern: /Step 3.*completed|Implementation.*complete/i, progress: 60 },
+      { pattern: /Cycle \d+.*Step 4|Code review|Running.*review/i, progress: 70 },
+      { pattern: /Step 4.*completed|Code review.*passed|✓.*approved/i, progress: 85 },
+      { pattern: /Cycle \d+.*Step 5|Creating commit|Committing/i, progress: 90 },
+      { pattern: /Step 5.*completed|Committed.*pushed|✓.*Task completed/i, progress: 95 }
+    ];
+
+    for (const { pattern, progress } of stepMatches) {
+      if (pattern.test(log)) {
+        // Update overall task progress if no subtasks
+        if (task.subtasks.length === 0) {
+          task.progress = Math.max(task.progress, progress);
+        }
+        break;
+      }
+    }
+
+    // Look for subtask patterns in logs (for parallel execution)
     const subtaskMatch = log.match(/TASK(\d+):/);
     if (subtaskMatch) {
       const subtaskId = subtaskMatch[1];
@@ -319,7 +343,7 @@ class TaskController {
       }
     }
 
-    // Look for step completion patterns
+    // Look for step completion patterns (for subtasks)
     if (log.includes('Step 2 completed') || log.includes('TODO.md created')) {
       const runningSubtask = task.subtasks.find(st => st.status === 'running');
       if (runningSubtask) runningSubtask.progress = 25;

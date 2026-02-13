@@ -19,13 +19,26 @@ describe('createLogsRouter', () => {
         jest.clearAllMocks();
     });
 
-    describe('GET /api/projects/:projectPath/logs', () => {
-        test('should return recent log.txt content when file exists', (done) => {
+    describe('Router structure', () => {
+        test('should create a valid Express router with GET route', () => {
+            expect(router).toBeDefined();
+            expect(router.stack).toBeDefined();
+
+            const getRoute = router.stack.find(
+                layer => layer.route && layer.route.methods.get,
+            );
+
+            expect(getRoute).toBeDefined();
+        });
+    });
+
+    describe('GET handler', () => {
+        test('returns recent log.txt content when file exists', () => {
             const projectPath = '/home/user/project';
             const logContent = 'Line 1\nLine 2\nLine 3\nLine 4\nLine 5';
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue(logContent);
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce(logContent);
 
             const req = {
                 params: { projectPath },
@@ -33,29 +46,28 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.content).toContain('Line');
-                    expect(data.data.lines).toBe(5);
-                    expect(fs.readFileSync).toHaveBeenCalledWith(
-                        expect.stringContaining('.claudiomiro/log.txt'),
-                        'utf8',
-                    );
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    content: logContent,
+                    lines: 5,
+                },
+            });
         });
 
-        test('should return empty logs when log.txt does not exist', (done) => {
+        test('returns empty logs when log.txt does not exist', () => {
             const projectPath = '/home/user/project';
 
-            fs.existsSync.mockReturnValue(false);
+            fs.existsSync.mockReturnValueOnce(false);
 
             const req = {
                 params: { projectPath },
@@ -63,49 +75,52 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.content).toBe('');
-                    expect(data.data.lines).toBe(0);
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    content: '',
+                    lines: 0,
+                },
+            });
         });
 
-        test('should respect custom lines query parameter', (done) => {
+        test('respects custom lines query parameter', () => {
             const projectPath = '/home/user/project';
             const logContent = Array.from({ length: 150 }, (_, i) => `Line ${i + 1}`).join('\n');
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue(logContent);
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce(logContent);
 
             const req = {
                 params: { projectPath },
-                query: { lines: '50' },
+                query: { lines: '30' },
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.lines).toBeLessThanOrEqual(50);
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            const callArgs = res.json.mock.calls[0][0];
+            expect(callArgs.success).toBe(true);
+            expect(callArgs.data.lines).toBeLessThanOrEqual(30);
         });
 
-        test('should return 400 when projectPath is missing', (done) => {
+        test('returns 400 when projectPath is missing', () => {
             const req = {
                 params: {},
                 query: {},
@@ -113,27 +128,28 @@ describe('createLogsRouter', () => {
 
             const res = {
                 status: jest.fn().mockReturnThis(),
-                json: jest.fn((data) => {
-                    expect(res.status).toHaveBeenCalledWith(400);
-                    expect(data.success).toBe(false);
-                    expect(data.error).toContain('Project path');
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                error: 'Project path is required',
+            });
         });
 
-        test('should use default 100 lines when lines param is invalid', (done) => {
+        test('uses default 100 lines when param is invalid', () => {
             const projectPath = '/home/user/project';
-            const logContent = Array.from({ length: 150 }, (_, i) => `Line ${i + 1}`).join('\n');
+            const logContent = Array.from({ length: 200 }, (_, i) => `Line ${i + 1}`).join('\n');
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue(logContent);
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce(logContent);
 
             const req = {
                 params: { projectPath },
@@ -141,25 +157,25 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.lines).toBeLessThanOrEqual(100);
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            const callArgs = res.json.mock.calls[0][0];
+            expect(callArgs.success).toBe(true);
+            expect(callArgs.data.lines).toBeLessThanOrEqual(100);
         });
 
-        test('should handle read errors gracefully', (done) => {
+        test('handles read errors gracefully', () => {
             const projectPath = '/home/user/project';
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockImplementation(() => {
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockImplementationOnce(() => {
                 throw new Error('Permission denied');
             });
 
@@ -170,27 +186,28 @@ describe('createLogsRouter', () => {
 
             const res = {
                 status: jest.fn().mockReturnThis(),
-                json: jest.fn((data) => {
-                    expect(res.status).toHaveBeenCalledWith(500);
-                    expect(data.success).toBe(false);
-                    expect(data.error).toContain('Failed to read');
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(500);
+            expect(res.json).toHaveBeenCalledWith({
+                success: false,
+                error: 'Failed to read logs',
+            });
         });
 
-        test('should correctly tail large log files', (done) => {
+        test('correctly tails large log files', () => {
             const projectPath = '/home/user/project';
             const logContent = Array.from({ length: 500 }, (_, i) => `Line ${i + 1}`).join('\n');
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue(logContent);
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce(logContent);
 
             const req = {
                 params: { projectPath },
@@ -198,27 +215,28 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.content).toContain('Line 490');
-                    expect(data.data.content).toContain('Line 500');
-                    expect(data.data.lines).toBeLessThanOrEqual(10);
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            const callArgs = res.json.mock.calls[0][0];
+            expect(callArgs.success).toBe(true);
+            // Should get last 10 lines (491-500, since array is 0-indexed)
+            expect(callArgs.data.content).toContain('Line 491');
+            expect(callArgs.data.content).toContain('Line 500');
+            expect(callArgs.data.lines).toBeLessThanOrEqual(10);
         });
 
-        test('should handle empty log file', (done) => {
+        test('handles empty log file', () => {
             const projectPath = '/home/user/project';
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue('');
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce('');
 
             const req = {
                 params: { projectPath },
@@ -226,27 +244,30 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.content).toBe('');
-                    expect(data.data.lines).toBe(0);
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
+            ).route.stack[0].handle;
+
+            getHandler(req, res);
+
+            expect(res.json).toHaveBeenCalledWith({
+                success: true,
+                data: {
+                    content: '',
+                    lines: 0,
+                },
+            });
         });
 
-        test('should handle files with trailing newline correctly', (done) => {
+        test('handles files with trailing newline correctly', () => {
             const projectPath = '/home/user/project';
             const logContent = 'Line 1\nLine 2\nLine 3\n';
 
-            fs.existsSync.mockReturnValue(true);
-            fs.readFileSync.mockReturnValue(logContent);
+            fs.existsSync.mockReturnValueOnce(true);
+            fs.readFileSync.mockReturnValueOnce(logContent);
 
             const req = {
                 params: { projectPath },
@@ -254,34 +275,19 @@ describe('createLogsRouter', () => {
             };
 
             const res = {
-                json: jest.fn((data) => {
-                    expect(data.success).toBe(true);
-                    expect(data.data.content).toContain('Line 1');
-                    expect(data.data.content).toContain('Line 3');
-                    done();
-                }),
+                json: jest.fn(),
             };
 
-            const callback = router.stack.find(
+            const getHandler = router.stack.find(
                 layer => layer.route && layer.route.methods.get,
-            ).handle;
-            const next = jest.fn();
-            callback(req, res, next);
-        });
-    });
+            ).route.stack[0].handle;
 
-    describe('Router structure', () => {
-        test('should create a valid Express router', () => {
-            expect(router).toBeDefined();
-            expect(router.stack).toBeDefined();
-            expect(router.stack.length).toBeGreaterThan(0);
-        });
+            getHandler(req, res);
 
-        test('should have GET route', () => {
-            const hasGet = router.stack.some(
-                layer => layer.route && layer.route.methods.get,
-            );
-            expect(hasGet).toBe(true);
+            const callArgs = res.json.mock.calls[0][0];
+            expect(callArgs.success).toBe(true);
+            expect(callArgs.data.content).toContain('Line 1');
+            expect(callArgs.data.content).toContain('Line 3');
         });
     });
 });

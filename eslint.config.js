@@ -59,6 +59,7 @@ module.exports = [
             'coverage/**',
             '.claudiomiro/**',
             '*.md',
+            'src/commands/serve/public/vendor/**',
         ],
     },
 ];

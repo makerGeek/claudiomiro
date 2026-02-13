@@ -66,6 +66,16 @@ const COMMANDS = [
             { flag: 'KEY=VALUE', description: 'Quick set a config value (e.g., CLAUDIOMIRO_LOCAL_LLM=qwen2.5-coder:7b)' },
         ],
     },
+    {
+        name: 'claudiomiro --serve [folder] [options]',
+        description: 'Start development web server for Claudiomiro web UI',
+        options: [
+            { flag: '--port=<number>', description: 'Server port (default: 3000)' },
+            { flag: '--host=<address>', description: 'Server host (default: localhost)' },
+            { flag: '--open', description: 'Open browser automatically' },
+            { flag: '--projects=<paths>', description: 'Comma-separated project paths to monitor' },
+        ],
+    },
 ];
 
 const GLOBAL_OPTIONS = [

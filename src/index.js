@@ -25,12 +25,16 @@ const parseArgs = () => {
     const testLocalLlmArg = args.includes('--test-local-llm');
     const tokenOptimizerArg = args.includes('--token-optimizer');
     const configArg = args.includes('--config');
+    const serveArg = args.includes('--serve');
 
     if (helpArg || versionArg) {
         return { command: 'help', args };
     }
     if (configArg) {
         return { command: 'config', args };
+    }
+    if (serveArg) {
+        return { command: 'serve', args };
     }
     if (testLocalLlmArg) {
         return { command: 'test-local-llm', args };
@@ -76,6 +80,11 @@ const init = async () => {
         case 'config': {
             const { run: runConfig } = require('./commands/config');
             await runConfig(args);
+            break;
+        }
+        case 'serve': {
+            const { run: runServe } = require('./commands/serve');
+            await runServe(args);
             break;
         }
         case 'test-local-llm': {

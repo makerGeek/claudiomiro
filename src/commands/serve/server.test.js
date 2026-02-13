@@ -21,6 +21,7 @@ jest.mock('http', () => ({
     createServer: jest.fn(() => ({
         listen: jest.fn(),
         close: jest.fn(),
+        on: jest.fn(),
     })),
 }));
 
@@ -132,6 +133,7 @@ describe('server', () => {
 
             const result = await startServer(server);
 
+            expect(mockHttpServer.on).toHaveBeenCalledWith('error', expect.any(Function));
             expect(mockHttpServer.listen).toHaveBeenCalledWith(3000, 'localhost', expect.any(Function));
             expect(result).toBe(server);
         });
@@ -141,8 +143,17 @@ describe('server', () => {
             const server = { httpServer: mockHttpServer, port: 3000, host: 'localhost' };
             const error = new Error('EADDRINUSE: port already in use');
 
-            mockHttpServer.listen.mockImplementation((_port, _host, callback) => {
-                callback(error);
+            // Mock the 'on' method to capture error handler
+            let errorHandler;
+            mockHttpServer.on = jest.fn((event, handler) => {
+                if (event === 'error') {
+                    errorHandler = handler;
+                }
+            });
+
+            mockHttpServer.listen.mockImplementation(() => {
+                // Simulate error event emission
+                setImmediate(() => errorHandler(error));
             });
 
             await expect(startServer(server)).rejects.toThrow('EADDRINUSE');
@@ -158,6 +169,7 @@ describe('server', () => {
 
             await startServer(server);
 
+            expect(mockHttpServer.on).toHaveBeenCalledWith('error', expect.any(Function));
             expect(mockHttpServer.listen).toHaveBeenCalledWith(8080, '0.0.0.0', expect.any(Function));
         });
     });

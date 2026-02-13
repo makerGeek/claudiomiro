@@ -47,12 +47,10 @@ const createServer = (options = {}) => {
  */
 const startServer = (server) => {
     return new Promise((resolve, reject) => {
-        server.httpServer.listen(server.port, server.host, (err) => {
-            if (err) {
-                reject(err);
-            } else {
-                resolve(server);
-            }
+        // Errors are emitted via 'error' event, not passed to callback
+        server.httpServer.on('error', reject);
+        server.httpServer.listen(server.port, server.host, () => {
+            resolve(server);
         });
     });
 };

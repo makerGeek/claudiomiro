@@ -54,10 +54,10 @@
             window.Store.setConnectionStatus('connecting');
         }
 
-        // Determine WebSocket URL
+        // Determine WebSocket URL with project query parameter
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const host = window.location.host;
-        const wsUrl = `${protocol}//${host}`;
+        const wsUrl = `${protocol}//${host}?project=${encodeURIComponent(projectPath)}`;
 
         console.log('[WebSocket] Connecting to', wsUrl);
 
@@ -195,8 +195,10 @@
         }
 
         const message = {
-            type: 'subscribe',
-            projectPath: projectPath,
+            event: 'subscribe:project',
+            data: {
+                projectPath: projectPath,
+            },
         };
 
         ws.send(JSON.stringify(message));
@@ -208,123 +210,185 @@
      * @param {Object} message - Parsed message object
      */
     function handleMessage(message) {
-        if (!message.type) {
-            console.warn('[WebSocket] Message missing type:', message);
+        if (!message.event) {
+            console.warn('[WebSocket] Message missing event:', message);
             return;
         }
 
-        console.log('[WebSocket] Message:', message.type, message);
+        console.log('[WebSocket] Message:', message.event, message);
 
         // Dispatch to Store based on event type
-        switch (message.type) {
-            case 'task_updated':
-                handleTaskUpdated(message);
+        switch (message.event) {
+            case 'project:state':
+                handleProjectState(message);
                 break;
 
-            case 'task_created':
-                handleTaskCreated(message);
+            case 'task:status':
+                handleTaskStatus(message);
                 break;
 
-            case 'task_deleted':
-                handleTaskDeleted(message);
+            case 'task:blueprint':
+                handleTaskBlueprint(message);
                 break;
 
-            case 'file_changed':
+            case 'task:review':
+                handleTaskReview(message);
+                break;
+
+            case 'prompt:changed':
+                handlePromptChanged(message);
+                break;
+
+            case 'project:completed':
+                handleProjectCompleted(message);
+                break;
+
+            case 'file:changed':
                 handleFileChanged(message);
                 break;
 
-            case 'project_state_changed':
-                handleProjectStateChanged(message);
+            case 'error':
+                handleError(message);
                 break;
 
             default:
-                console.warn('[WebSocket] Unknown message type:', message.type);
+                console.warn('[WebSocket] Unknown message event:', message.event);
         }
     }
 
     /**
-     * Handle task_updated event
-     * @param {Object} message - Message data
+     * Handle project:state event (initial state snapshot)
+     * @param {Object} message - Message with { event, data: { projectPath, tasks, timestamp } }
      */
-    function handleTaskUpdated(message) {
-        if (!window.Store || !message.taskId) return;
+    function handleProjectState(message) {
+        if (!window.Store || !message.data) return;
+
+        const { tasks } = message.data;
+
+        // Convert tasks object to array for store
+        if (tasks && typeof tasks === 'object') {
+            const tasksArray = Object.entries(tasks).map(([taskId, execution]) => ({
+                id: taskId,
+                ...execution,
+            }));
+            window.Store.setTasks(tasksArray);
+        }
+
+        console.log('[WebSocket] Project state loaded:', Object.keys(tasks || {}).length, 'tasks');
+    }
+
+    /**
+     * Handle task:status event (execution.json changed)
+     * @param {Object} message - Message with { event, data: { taskId, projectPath, file, execution } }
+     */
+    function handleTaskStatus(message) {
+        if (!window.Store || !message.data) return;
+
+        const { taskId, execution } = message.data;
 
         // Update task in store
-        if (message.task) {
-            window.Store.updateTask(message.taskId, message.task);
+        if (taskId && execution) {
+            const existingTaskIndex = window.Store.state.tasks.findIndex(t => t.id === taskId);
+            if (existingTaskIndex >= 0) {
+                const updated = [...window.Store.state.tasks];
+                updated[existingTaskIndex] = { id: taskId, ...execution };
+                window.Store.setTasks(updated);
+            } else {
+                // New task appeared
+                window.Store.setTasks([...window.Store.state.tasks, { id: taskId, ...execution }]);
+            }
+
+            // If current task is being viewed, update it
+            if (window.Store.state.currentTask?.id === taskId) {
+                window.Store.setCurrentTask({ id: taskId, ...execution });
+            }
         }
 
         // Show toast notification
         window.Store.addToast({
-            message: `Task ${message.taskId} updated`,
+            message: `Task ${taskId} status updated: ${execution?.status || 'unknown'}`,
             type: 'info',
             duration: 3000,
         });
     }
 
     /**
-     * Handle task_created event
-     * @param {Object} message - Message data
+     * Handle task:blueprint event (BLUEPRINT.md changed)
+     * @param {Object} message - Message with { event, data: { taskId, projectPath, file, content } }
      */
-    function handleTaskCreated(message) {
-        if (!window.Store || !message.task) return;
+    function handleTaskBlueprint(message) {
+        if (!window.Store || !message.data) return;
 
-        // Refresh tasks list
-        if (currentProjectPath && window.Api) {
-            window.Api.getTasks(currentProjectPath)
-                .then(tasks => {
-                    window.Store.setTasks(tasks);
-                })
-                .catch(error => {
-                    console.error('[WebSocket] Failed to refresh tasks:', error);
-                });
-        }
+        const { taskId } = message.data;
 
         // Show toast notification
         window.Store.addToast({
-            message: `New task created: ${message.task.id}`,
+            message: `Task ${taskId} blueprint updated`,
+            type: 'info',
+            duration: 3000,
+        });
+    }
+
+    /**
+     * Handle task:review event (CODE_REVIEW.md or review-checklist.json changed)
+     * @param {Object} message - Message with { event, data: { taskId, projectPath, file, content } }
+     */
+    function handleTaskReview(message) {
+        if (!window.Store || !message.data) return;
+
+        const { taskId } = message.data;
+
+        // Show toast notification
+        window.Store.addToast({
+            message: `Task ${taskId} code review updated`,
+            type: 'info',
+            duration: 3000,
+        });
+    }
+
+    /**
+     * Handle prompt:changed event (AI_PROMPT.md changed)
+     * @param {Object} _message - Message with { event, data: { projectPath, file, content } }
+     */
+    function handlePromptChanged(_message) {
+        if (!window.Store) return;
+
+        // Show toast notification
+        window.Store.addToast({
+            message: 'AI prompt updated',
+            type: 'info',
+            duration: 3000,
+        });
+    }
+
+    /**
+     * Handle project:completed event (task executor finished all tasks)
+     * @param {Object} _message - Message with { event, data: { projectPath } }
+     */
+    function handleProjectCompleted(_message) {
+        if (!window.Store) return;
+
+        // Show toast notification
+        window.Store.addToast({
+            message: 'All tasks completed!',
             type: 'success',
             duration: 5000,
         });
     }
 
     /**
-     * Handle task_deleted event
-     * @param {Object} message - Message data
-     */
-    function handleTaskDeleted(message) {
-        if (!window.Store || !message.taskId) return;
-
-        // Refresh tasks list
-        if (currentProjectPath && window.Api) {
-            window.Api.getTasks(currentProjectPath)
-                .then(tasks => {
-                    window.Store.setTasks(tasks);
-                })
-                .catch(error => {
-                    console.error('[WebSocket] Failed to refresh tasks:', error);
-                });
-        }
-
-        // Show toast notification
-        window.Store.addToast({
-            message: `Task ${message.taskId} deleted`,
-            type: 'warning',
-            duration: 3000,
-        });
-    }
-
-    /**
-     * Handle file_changed event
-     * @param {Object} message - Message data
+     * Handle file:changed event (generic file change)
+     * @param {Object} message - Message with { event, data: { projectPath, file, taskId? } }
      */
     function handleFileChanged(message) {
-        if (!window.Store) return;
+        if (!window.Store || !message.data) return;
+
+        const { taskId, file } = message.data;
 
         // If it's a task file, refresh current task
-        if (message.taskId && window.Store.state.currentTask?.id === message.taskId) {
+        if (taskId && window.Store.state.currentTask?.id === taskId) {
             if (currentProjectPath && window.Api) {
-                window.Api.getTask(currentProjectPath, message.taskId)
+                window.Api.getTask(currentProjectPath, taskId)
                     .then(task => {
                         window.Store.setCurrentTask(task);
                     })
@@ -335,9 +399,9 @@
         }
 
         // Show toast notification for important files
-        if (message.file && (message.file.includes('BLUEPRINT') || message.file.includes('execution'))) {
+        if (file && (file.includes('BLUEPRINT') || file.includes('execution'))) {
             window.Store.addToast({
-                message: `File updated: ${message.file}`,
+                message: `File updated: ${file}`,
                 type: 'info',
                 duration: 3000,
             });
@@ -345,28 +409,16 @@
     }
 
     /**
-     * Handle project_state_changed event
-     * @param {Object} _message - Message data (unused, we refetch from API)
+     * Handle error event from server
+     * @param {Object} message - Message with { event: 'error', data: { message } }
      */
-    function handleProjectStateChanged(_message) {
-        if (!window.Store || !currentProjectPath) return;
+    function handleError(message) {
+        if (!window.Store || !message.data) return;
 
-        // Refresh project state
-        if (window.Api) {
-            window.Api.getProjectState(currentProjectPath)
-                .then(state => {
-                    window.Store.setTasks(state.tasks || []);
-                })
-                .catch(error => {
-                    console.error('[WebSocket] Failed to refresh project state:', error);
-                });
-        }
-
-        // Show toast notification
         window.Store.addToast({
-            message: 'Project state updated',
-            type: 'info',
-            duration: 3000,
+            message: `WebSocket error: ${message.data.message || 'Unknown error'}`,
+            type: 'error',
+            duration: 5000,
         });
     }
 

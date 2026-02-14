@@ -94,13 +94,13 @@
                         </a>
                     </h1>
                     <div class="header-actions">
-                        <!-- Connection Status (placeholder for TASK7) -->
+                        <!-- Connection Status (reactive) -->
                         <div
-                            v-if="wsClient"
-                            :class="['connection-status', wsClient.isConnected() ? 'connected' : 'disconnected']"
+                            v-if="store"
+                            :class="['connection-status', store.state.connectionStatus === 'connected' ? 'connected' : 'disconnected']"
                         >
                             <span class="connection-indicator"></span>
-                            <span>{{ wsClient.isConnected() ? 'Connected' : 'Disconnected' }}</span>
+                            <span>{{ store.state.connectionStatus === 'connected' ? 'Connected' : (store.state.connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected') }}</span>
                         </div>
                     </div>
                 </header>

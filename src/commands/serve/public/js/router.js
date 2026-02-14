@@ -43,20 +43,20 @@
 
         const segments = path.split('/');
 
-        // #/project/:path
-        if (segments[0] === 'project' && segments.length >= 2 && segments[2] !== 'task') {
-            // Reconstruct project path (may contain slashes)
-            const projectPath = segments.slice(1).join('/');
-            return { name: 'project', params: { projectPath } };
-        }
-
-        // #/project/:path/task/:id
+        // #/project/:path/task/:id (more specific — check FIRST)
         if (segments[0] === 'project' && segments.length >= 4 && segments[segments.length - 2] === 'task') {
             // Find "task" keyword index
             const taskIndex = segments.lastIndexOf('task');
             const projectPath = segments.slice(1, taskIndex).join('/');
             const taskId = segments[taskIndex + 1];
             return { name: 'task', params: { projectPath, taskId } };
+        }
+
+        // #/project/:path (less specific — check SECOND)
+        if (segments[0] === 'project' && segments.length >= 2) {
+            // Reconstruct project path (may contain slashes)
+            const projectPath = segments.slice(1).join('/');
+            return { name: 'project', params: { projectPath } };
         }
 
         // Unknown route → default to dashboard

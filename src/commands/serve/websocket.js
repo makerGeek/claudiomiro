@@ -36,7 +36,12 @@ const createWebSocketHandler = (options = {}) => {
                 .readdirSync(taskExecutorPath)
                 .filter(name => {
                     const fullPath = path.join(taskExecutorPath, name);
-                    return fs.statSync(fullPath).isDirectory() && /^TASK\d+/.test(name);
+                    try {
+                        return fs.statSync(fullPath).isDirectory() && /^TASK\d+/.test(name);
+                    } catch (error) {
+                        // Skip unreadable directories (permission denied, symlink target missing, etc.)
+                        return false;
+                    }
                 })
                 .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
@@ -109,27 +114,27 @@ const createWebSocketHandler = (options = {}) => {
         if (!projectWatchers.has(projectPath)) {
             const watcher = new FileWatcher();
 
-            // Listen to all FileWatcher events and broadcast them
-            const eventTypes = [
-                'task:status',
-                'task:blueprint',
-                'task:review',
-                'prompt:changed',
-                'project:completed',
-                'file:changed',
-            ];
-
-            eventTypes.forEach(eventType => {
-                watcher.on(eventType, (data) => {
-                    broadcast(projectPath, eventType, data);
-                });
-            });
-
             try {
                 watcher.start(projectPath);
                 projectWatchers.set(projectPath, watcher);
+
+                // Listen to all FileWatcher events and broadcast them (AFTER successful start)
+                const eventTypes = [
+                    'task:status',
+                    'task:blueprint',
+                    'task:review',
+                    'prompt:changed',
+                    'project:completed',
+                    'file:changed',
+                ];
+
+                eventTypes.forEach(eventType => {
+                    watcher.on(eventType, (data) => {
+                        broadcast(projectPath, eventType, data);
+                    });
+                });
             } catch (error) {
-                // If watcher fails to start, still allow subscription but log error
+                // If watcher fails to start, no listeners attached (no memory leak)
                 console.error(`Failed to start FileWatcher for ${projectPath}:`, error.message);
             }
         }
@@ -189,6 +194,9 @@ const createWebSocketHandler = (options = {}) => {
         ws.on('message', (message) => {
             try {
                 const { event, data } = JSON.parse(message.toString());
+
+                // Validate event field exists
+                if (!event) return;
 
                 if (event === 'subscribe:project') {
                     const newProjectPath = data.projectPath || '';

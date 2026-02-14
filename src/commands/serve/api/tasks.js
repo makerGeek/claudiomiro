@@ -11,6 +11,16 @@ const path = require('path');
 const createTasksRouter = (_options = {}) => {
     const router = express.Router({ mergeParams: true });
 
+    // Helper: Decode project path safely
+    const decodeProjectPath = (encodedPath) => {
+        if (!encodedPath) return encodedPath;
+        try {
+            return decodeURIComponent(encodedPath);
+        } catch {
+            return encodedPath;
+        }
+    };
+
     // Helper: Get task executor path for a project
     const getTaskExecutorPath = (projectPath) => {
         return path.join(projectPath, '.claudiomiro', 'task-executor');
@@ -42,7 +52,7 @@ const createTasksRouter = (_options = {}) => {
     // GET / - List all tasks
     router.get('/', (req, res) => {
         try {
-            const projectPath = req.params.projectPath;
+            const projectPath = decodeProjectPath(req.params.projectPath);
             const taskExecutorPath = getTaskExecutorPath(projectPath);
 
             if (!fs.existsSync(taskExecutorPath)) {
@@ -116,7 +126,8 @@ const createTasksRouter = (_options = {}) => {
     // GET /:taskId - Full task details
     router.get('/:taskId', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const taskPath = path.join(getTaskExecutorPath(projectPath), taskId);
 
             if (!fs.existsSync(taskPath)) {
@@ -161,7 +172,8 @@ const createTasksRouter = (_options = {}) => {
     // GET /:taskId/blueprint - Raw BLUEPRINT.md content
     router.get('/:taskId/blueprint', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const blueprintPath = path.join(getTaskExecutorPath(projectPath), taskId, 'BLUEPRINT.md');
 
             if (!fs.existsSync(blueprintPath)) {
@@ -178,7 +190,8 @@ const createTasksRouter = (_options = {}) => {
     // GET /:taskId/execution - Parsed execution.json
     router.get('/:taskId/execution', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const executionPath = path.join(getTaskExecutorPath(projectPath), taskId, 'execution.json');
 
             if (!fs.existsSync(executionPath)) {
@@ -200,7 +213,8 @@ const createTasksRouter = (_options = {}) => {
     // GET /:taskId/review - CODE_REVIEW.md content
     router.get('/:taskId/review', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const taskPath = path.join(getTaskExecutorPath(projectPath), taskId);
 
             const result = {
@@ -229,7 +243,8 @@ const createTasksRouter = (_options = {}) => {
     // PUT /:taskId/blueprint - Update BLUEPRINT.md
     router.put('/:taskId/blueprint', express.json(), (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const { content } = req.body;
 
             if (!content || typeof content !== 'string') {
@@ -254,7 +269,8 @@ const createTasksRouter = (_options = {}) => {
     // PUT /:taskId/execution - Update execution.json
     router.put('/:taskId/execution', express.json(), (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const data = req.body;
 
             if (!data || typeof data !== 'object') {
@@ -284,7 +300,8 @@ const createTasksRouter = (_options = {}) => {
     // POST /:taskId/retry - Reset task to retry
     router.post('/:taskId/retry', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const executionPath = path.join(getTaskExecutorPath(projectPath), taskId, 'execution.json');
 
             if (!fs.existsSync(executionPath)) {
@@ -308,7 +325,8 @@ const createTasksRouter = (_options = {}) => {
     // POST /:taskId/approve-review - Mark code review as approved
     router.post('/:taskId/approve-review', (req, res) => {
         try {
-            const { projectPath, taskId } = req.params;
+            const projectPath = decodeProjectPath(req.params.projectPath);
+            const { taskId } = req.params;
             const codeReviewPath = path.join(getTaskExecutorPath(projectPath), taskId, 'CODE_REVIEW.md');
 
             if (!fs.existsSync(codeReviewPath)) {

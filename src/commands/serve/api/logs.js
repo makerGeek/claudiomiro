@@ -15,6 +15,16 @@ const path = require('path');
 const createLogsRouter = (_options = {}) => {
     const router = express.Router({ mergeParams: true });
 
+    // Helper: Decode project path safely
+    const decodeProjectPath = (encodedPath) => {
+        if (!encodedPath) return encodedPath;
+        try {
+            return decodeURIComponent(encodedPath);
+        } catch {
+            return encodedPath;
+        }
+    };
+
     /**
      * Get last N lines of a file
      * @param {string} filePath - Full path to file
@@ -36,7 +46,7 @@ const createLogsRouter = (_options = {}) => {
      */
     router.get('/', (req, res) => {
         try {
-            const projectPath = req.params.projectPath;
+            const projectPath = decodeProjectPath(req.params.projectPath);
             if (!projectPath) {
                 return res.status(400).json({
                     success: false,
@@ -55,7 +65,7 @@ const createLogsRouter = (_options = {}) => {
 
             // Construct path to log.txt: <project>/.claudiomiro/log.txt
             const logPath = path.join(
-                decodeURIComponent(projectPath),
+                projectPath,
                 '.claudiomiro',
                 'log.txt',
             );

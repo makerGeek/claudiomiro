@@ -17,13 +17,23 @@ const createPromptRouter = (options = {}) => {
     const router = express.Router({ mergeParams: true });
     const { state: _state } = options;
 
+    // Helper: Decode project path safely
+    const decodeProjectPath = (encodedPath) => {
+        if (!encodedPath) return encodedPath;
+        try {
+            return decodeURIComponent(encodedPath);
+        } catch {
+            return encodedPath;
+        }
+    };
+
     /**
      * GET /api/projects/:projectPath/prompt
      * Read AI_PROMPT.md content
      */
     router.get('/', (req, res) => {
         try {
-            const projectPath = req.params.projectPath;
+            const projectPath = decodeProjectPath(req.params.projectPath);
             if (!projectPath) {
                 return res.status(400).json({
                     success: false,
@@ -33,7 +43,7 @@ const createPromptRouter = (options = {}) => {
 
             // Construct path to AI_PROMPT.md: <project>/.claudiomiro/task-executor/AI_PROMPT.md
             const aiPromptPath = path.join(
-                decodeURIComponent(projectPath),
+                projectPath,
                 '.claudiomiro',
                 'task-executor',
                 'AI_PROMPT.md',
@@ -72,7 +82,7 @@ const createPromptRouter = (options = {}) => {
      */
     router.put('/', (req, res) => {
         try {
-            const projectPath = req.params.projectPath;
+            const projectPath = decodeProjectPath(req.params.projectPath);
             if (!projectPath) {
                 return res.status(400).json({
                     success: false,
@@ -92,7 +102,7 @@ const createPromptRouter = (options = {}) => {
 
             // Construct path to AI_PROMPT.md
             const aiPromptPath = path.join(
-                decodeURIComponent(projectPath),
+                projectPath,
                 '.claudiomiro',
                 'task-executor',
                 'AI_PROMPT.md',

@@ -212,7 +212,7 @@ const createWebSocketHandler = (options = {}) => {
                     }
                 }
             } catch (error) {
-                // Ignore malformed messages
+                console.error('WebSocket message parsing error:', error.message);
             }
         });
 

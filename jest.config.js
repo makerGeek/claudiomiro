@@ -39,11 +39,12 @@ module.exports = {
         '**/*.test.js',
     ],
 
-    // Ignore mock modules and utility files
+    // Ignore mock modules, utility files, and E2E tests (run via Playwright)
     testPathIgnorePatterns: [
         '/node_modules/',
         '/__mocks__/',
         '/test-utils.js$',
+        '\\.e2e\\.test\\.js$',
     ],
 
     // Module file extensions

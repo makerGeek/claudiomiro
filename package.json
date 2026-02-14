@@ -6,7 +6,7 @@
     "claudiomiro": "./index.js"
   },
   "scripts": {
-    "test": "npx jest --testPathIgnorePatterns='dag-executor.test.js|cli.test.js'",
+    "test": "npx jest --testPathIgnorePatterns='dag-executor.test.js|cli.test.js|\\.e2e\\.test\\.js'",
     "test:dag": "NODE_OPTIONS=--max-old-space-size=8192 npx jest src/services/dag-executor.test.js --runInBand --forceExit",
     "test:all": "npm run test && npm run test:dag",
     "test:coverage": "NODE_OPTIONS=--max-old-space-size=8192 jest --coverage",
@@ -48,6 +48,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.58.2",
     "@types/jest": "^30.0.0",
     "eslint": "^9.39.1",
     "husky": "^9.1.7",

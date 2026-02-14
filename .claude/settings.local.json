@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:docs.z.ai)"
+      "WebFetch(domain:docs.z.ai)",
+      "Bash(grep:*)"
     ],
     "deny": [],
     "ask": []

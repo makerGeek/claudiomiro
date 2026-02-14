@@ -54,11 +54,51 @@ module.exports = [
         },
     },
     {
+        // Browser environment for frontend files
+        files: ['src/commands/serve/public/js/**/*.js'],
+        languageOptions: {
+            ecmaVersion: 2022,
+            sourceType: 'script',
+            globals: {
+                // Browser globals
+                window: 'readonly',
+                document: 'readonly',
+                console: 'readonly',
+                fetch: 'readonly',
+                WebSocket: 'readonly',
+                setTimeout: 'readonly',
+                setInterval: 'readonly',
+                clearTimeout: 'readonly',
+                clearInterval: 'readonly',
+                alert: 'readonly',
+                location: 'readonly',
+            },
+        },
+        rules: {
+            'no-unused-vars': ['error', {
+                vars: 'all',
+                varsIgnorePattern: '^_',
+                args: 'after-used',
+                argsIgnorePattern: '^_',
+                caughtErrorsIgnorePattern: '^_|^error$|^err$|^e$',
+            }],
+            'no-console': 'off',
+            'semi': ['error', 'always'],
+            'quotes': ['error', 'single', { avoidEscape: true }],
+            'indent': ['error', 4, { SwitchCase: 1 }],
+            'comma-dangle': ['error', 'always-multiline'],
+            'no-multiple-empty-lines': ['error', { max: 1, maxEOF: 0 }],
+            'eol-last': ['error', 'always'],
+            'no-trailing-spaces': 'error',
+        },
+    },
+    {
         ignores: [
             'node_modules/**',
             'coverage/**',
             '.claudiomiro/**',
             '*.md',
+            'src/commands/serve/public/vendor/**',
         ],
     },
 ];

@@ -35,29 +35,6 @@
                 return `${routeName}-view`;
             });
 
-            // Load initial data on mount
-            const loadInitialData = async () => {
-                if (!api) return;
-
-                try {
-                    store.setLoading('projects', true);
-                    const projects = await api.getProjects();
-                    store.setProjects(projects);
-                } catch (error) {
-                    console.error('[App] Failed to load projects:', error);
-                    store.addToast({
-                        message: 'Failed to load projects',
-                        type: 'error',
-                        duration: 5000,
-                    });
-                } finally {
-                    store.setLoading('projects', false);
-                }
-            };
-
-            // Initialize on mount
-            loadInitialData();
-
             // Template string for root component
             return {
                 store,
@@ -71,20 +48,7 @@
         template: `
             <div id="claudiomiro-app">
                 <!-- Toast Notification Container -->
-                <div class="toast-container" v-if="store && store.state.toasts.length > 0">
-                    <div
-                        v-for="toast in store.state.toasts"
-                        :key="toast.id"
-                        :class="['toast', 'toast-' + toast.type]"
-                    >
-                        <div class="toast-message">{{ toast.message }}</div>
-                        <button
-                            class="toast-close"
-                            @click="store.removeToast(toast.id)"
-                            aria-label="Close"
-                        >&times;</button>
-                    </div>
-                </div>
+                <toast-container></toast-container>
 
                 <!-- Header -->
                 <header class="header">
@@ -94,85 +58,30 @@
                         </a>
                     </h1>
                     <div class="header-actions">
-                        <!-- Connection Status (reactive) -->
-                        <div
-                            v-if="store"
-                            :class="['connection-status', store.state.connectionStatus === 'connected' ? 'connected' : 'disconnected']"
-                        >
-                            <span class="connection-indicator"></span>
-                            <span>{{ store.state.connectionStatus === 'connected' ? 'Connected' : (store.state.connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected') }}</span>
-                        </div>
+                        <connection-status-component></connection-status-component>
                     </div>
                 </header>
 
                 <!-- Main Content Area -->
                 <main class="main">
-                    <!-- Loading State -->
-                    <div v-if="store && store.state.loading.projects" class="loading">
-                        <div class="spinner"></div>
-                        <p>Loading projects...</p>
-                    </div>
-
-                    <!-- Current View (placeholder for TASK7) -->
-                    <div v-else>
-                        <!-- Dashboard: Project List -->
-                        <div v-if="router.currentRoute.value.name === 'dashboard'">
-                            <h2>Projects</h2>
-                            <div v-if="store.state.projects.length === 0" class="text-muted">
-                                No projects found. Run <code>claudiomiro</code> in a project directory first.
-                            </div>
-                            <div v-else>
-                                <div v-for="project in store.state.projects" :key="project.path" class="card">
-                                    <h3 class="card-title">
-                                        <a :href="router.projectUrl(project.path)">{{ project.name || project.path }}</a>
-                                    </h3>
-                                    <p class="card-subtitle">{{ project.path }}</p>
-                                    <p class="card-body" v-if="project.taskCount !== undefined">
-                                        Tasks: {{ project.taskCount }}
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Project: Task List -->
-                        <div v-else-if="router.currentRoute.value.name === 'project'">
-                            <h2>Tasks</h2>
-                            <p class="text-muted">Project: {{ router.currentRoute.value.params.projectPath }}</p>
-                            <div v-if="store.state.tasks.length === 0" class="text-muted">
-                                No tasks found for this project.
-                            </div>
-                            <div v-else>
-                                <div v-for="task in store.state.tasks" :key="task.id" class="card">
-                                    <h3 class="card-title">
-                                        <a :href="router.taskUrl(router.currentRoute.value.params.projectPath, task.id)">
-                                            {{ task.id }}
-                                        </a>
-                                    </h3>
-                                    <p class="card-subtitle">{{ task.title || 'No title' }}</p>
-                                    <span :class="['status-badge', 'status-' + task.status]">{{ task.status }}</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Task Detail -->
-                        <div v-else-if="router.currentRoute.value.name === 'task'">
-                            <h2>Task Detail</h2>
-                            <p class="text-muted">Task: {{ router.currentRoute.value.params.taskId }}</p>
-                            <div class="card">
-                                <p>Full task detail view will be implemented in TASK7.</p>
-                            </div>
-                        </div>
-
-                        <!-- Unknown Route -->
-                        <div v-else>
-                            <h2>Page Not Found</h2>
-                            <p><a :href="router.dashboardUrl()">Go to Dashboard</a></p>
-                        </div>
-                    </div>
+                    <component :is="currentView"></component>
                 </main>
             </div>
         `,
     });
+
+    // Register components globally
+    if (window.StatusBadge) app.component('status-badge', window.StatusBadge);
+    if (window.TabsComponent) app.component('tabs-component', window.TabsComponent);
+    if (window.ToastContainer) app.component('toast-container', window.ToastContainer);
+    if (window.ConnectionStatusComponent) app.component('connection-status-component', window.ConnectionStatusComponent);
+    if (window.TaskCard) app.component('task-card', window.TaskCard);
+    if (window.EditorComponent) app.component('editor-component', window.EditorComponent);
+
+    // Register view components
+    if (window.DashboardView) app.component('dashboard-view', window.DashboardView);
+    if (window.ProjectView) app.component('project-view', window.ProjectView);
+    if (window.TaskView) app.component('task-view', window.TaskView);
 
     // Mount app to #app element
     app.mount('#app');

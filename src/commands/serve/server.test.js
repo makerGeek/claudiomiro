@@ -25,13 +25,38 @@ jest.mock('http', () => ({
     })),
 }));
 
+// Mock API routers
+jest.mock('./api/projects', () => jest.fn(() => 'projects-router'));
+jest.mock('./api/tasks', () => ({
+    createTasksRouter: jest.fn(() => 'tasks-router'),
+}));
+jest.mock('./api/prompt', () => ({
+    createPromptRouter: jest.fn(() => 'prompt-router'),
+}));
+jest.mock('./api/logs', () => ({
+    createLogsRouter: jest.fn(() => 'logs-router'),
+}));
+
+// Mock WebSocket handler
+jest.mock('./websocket', () => ({
+    createWebSocketHandler: jest.fn(() => ({
+        handleUpgrade: jest.fn(),
+        shutdown: jest.fn(),
+        wss: {},
+    })),
+}));
+
 const { createServer, startServer } = require('./server');
 const express = require('express');
 const http = require('http');
+const createProjectsRouter = require('./api/projects');
+const { createTasksRouter: _createTasksRouter } = require('./api/tasks');
+const { createPromptRouter: _createPromptRouter } = require('./api/prompt');
+const { createLogsRouter: _createLogsRouter } = require('./api/logs');
+const { createWebSocketHandler } = require('./websocket');
 
 describe('server', () => {
     beforeEach(() => {
-        // Clear mock calls before each test
         jest.clearAllMocks();
     });
 
@@ -69,6 +94,33 @@ describe('server', () => {
             expect(express.static).toHaveBeenCalledWith(
                 path.join(__dirname, 'public'),
             );
+        });
+
+        test('should mount API routers', () => {
+            const projectPaths = ['/path/to/project'];
+            createServer({ projectPaths });
+
+            const app = express();
+            expect(createProjectsRouter).toHaveBeenCalledWith({ projectPaths });
+            expect(app.use).toHaveBeenCalledWith('/api/projects', 'projects-router');
+            expect(app.use).toHaveBeenCalledWith('/api/projects/:projectPath/tasks', 'tasks-router');
+            expect(app.use).toHaveBeenCalledWith('/api/projects/:projectPath/prompt', 'prompt-router');
+            expect(app.use).toHaveBeenCalledWith('/api/projects/:projectPath/logs', 'logs-router');
+        });
+
+        test('should create WebSocket handler with project paths', () => {
+            const projectPaths = ['/path/to/project'];
+            const server = createServer({ projectPaths });
+
+            expect(createWebSocketHandler).toHaveBeenCalledWith({ allowedPaths: projectPaths });
+            expect(server.wsHandler).toBeDefined();
+            expect(server.wsHandler.handleUpgrade).toBeDefined();
+        });
+
+        test('should attach WebSocket upgrade handler to HTTP server', () => {
+            const server = createServer();
+
+            expect(server.httpServer.on).toHaveBeenCalledWith('upgrade', expect.any(Function));
         });
 
         test('should configure SPA fallback route', () => {
@@ -120,6 +172,34 @@ describe('server', () => {
             expect(mockRes.sendFile).not.toHaveBeenCalled();
             expect(mockNext).toHaveBeenCalled();
         });
+
+        test('should add error handling middleware', () => {
+            createServer();
+
+            const app = express();
+            // Error handler is the last app.use call with 4 args
+            const errorHandlerCall = app.use.mock.calls.find(
+                call => typeof call[0] === 'function' && call[0].length === 4,
+            );
+            expect(errorHandlerCall).toBeDefined();
+
+            // Test error handler
+            const errorHandler = errorHandlerCall[0];
+            const mockRes = {
+                status: jest.fn().mockReturnThis(),
+                json: jest.fn(),
+            };
+
+            const consoleError = jest.spyOn(console, 'error').mockImplementation();
+            errorHandler(new Error('test error'), {}, mockRes, jest.fn());
+
+            expect(mockRes.status).toHaveBeenCalledWith(500);
+            expect(mockRes.json).toHaveBeenCalledWith({
+                success: false,
+                error: 'Internal server error',
+            });
+            consoleError.mockRestore();
+        });
     });
 
     describe('startServer', () => {
@@ -143,7 +223,6 @@ describe('server', () => {
             const server = { httpServer: mockHttpServer, port: 3000, host: 'localhost' };
             const error = new Error('EADDRINUSE: port already in use');
 
-            // Mock the 'on' method to capture error handler
             let errorHandler;
             mockHttpServer.on = jest.fn((event, handler) => {
                 if (event === 'error') {
@@ -152,7 +231,6 @@ describe('server', () => {
             });
 
             mockHttpServer.listen.mockImplementation(() => {
-                // Simulate error event emission
                 setImmediate(() => errorHandler(error));
             });
 

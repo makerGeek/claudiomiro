@@ -67,19 +67,27 @@ const run = async (args) => {
 
         if (options.open) {
             console.log(chalk.gray('  Opening browser...\n'));
-            // Browser opening will be handled in integration (TASK8)
         }
 
         console.log(chalk.gray('  Press Ctrl+C to stop\n'));
 
-        // Keep process alive
-        process.on('SIGINT', () => {
+        // Graceful shutdown handler
+        const shutdown = () => {
             console.log(chalk.yellow('\n  Shutting down server...\n'));
+
+            // Close WebSocket handler (stops watchers, closes connections)
+            if (server.wsHandler) {
+                server.wsHandler.shutdown();
+            }
+
             server.httpServer.close(() => {
                 console.log(chalk.green('  Server stopped\n'));
                 process.exit(0);
             });
-        });
+        };
+
+        process.on('SIGINT', shutdown);
+        process.on('SIGTERM', shutdown);
 
     } catch (error) {
         console.error(chalk.red('\n  Failed to start server:\n'));

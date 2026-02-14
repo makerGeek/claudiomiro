@@ -45,6 +45,7 @@ describe('serve command', () => {
             httpServer: { close: jest.fn() },
             host: 'localhost',
             port: 3000,
+            wsHandler: { shutdown: jest.fn() },
         });
         startServer.mockImplementation(server => Promise.resolve(server));
     });
@@ -149,6 +150,7 @@ describe('serve command', () => {
                 httpServer: { close: jest.fn() },
                 host: '0.0.0.0',
                 port: 8080,
+                wsHandler: { shutdown: jest.fn() },
             });
 
             await run(['--port=8080', '--host=0.0.0.0']);
@@ -215,18 +217,21 @@ describe('serve command', () => {
             expect(processExit).toHaveBeenCalledWith(1);
         });
 
-        test('should set up SIGINT handler', async () => {
+        test('should set up SIGINT and SIGTERM handlers', async () => {
             await run([]);
 
             expect(processOn).toHaveBeenCalledWith('SIGINT', expect.any(Function));
+            expect(processOn).toHaveBeenCalledWith('SIGTERM', expect.any(Function));
         });
 
         test('should gracefully shutdown on SIGINT', async () => {
+            const mockShutdown = jest.fn();
             const mockClose = jest.fn(callback => callback());
             createServer.mockReturnValue({
                 httpServer: { close: mockClose },
                 host: 'localhost',
                 port: 3000,
+                wsHandler: { shutdown: mockShutdown },
             });
 
             let sigintHandler;
@@ -243,9 +248,58 @@ describe('serve command', () => {
             sigintHandler();
 
             expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('Shutting down'));
+            expect(mockShutdown).toHaveBeenCalled();
             expect(mockClose).toHaveBeenCalled();
             expect(consoleLog).toHaveBeenCalledWith(expect.stringContaining('Server stopped'));
             expect(processExit).toHaveBeenCalledWith(0);
+        });
+
+        test('should gracefully shutdown on SIGTERM', async () => {
+            const mockShutdown = jest.fn();
+            const mockClose = jest.fn(callback => callback());
+            createServer.mockReturnValue({
+                httpServer: { close: mockClose },
+                host: 'localhost',
+                port: 3000,
+                wsHandler: { shutdown: mockShutdown },
+            });
+
+            let sigtermHandler;
+            processOn.mockImplementation((event, handler) => {
+                if (event === 'SIGTERM') {
+                    sigtermHandler = handler;
+                }
+            });
+
+            await run([]);
+
+            expect(sigtermHandler).toBeDefined();
+            sigtermHandler();
+
+            expect(mockShutdown).toHaveBeenCalled();
+            expect(mockClose).toHaveBeenCalled();
+        });
+
+        test('should handle shutdown when wsHandler is not present', async () => {
+            const mockClose = jest.fn(callback => callback());
+            createServer.mockReturnValue({
+                httpServer: { close: mockClose },
+                host: 'localhost',
+                port: 3000,
+            });
+
+            let sigintHandler;
+            processOn.mockImplementation((event, handler) => {
+                if (event === 'SIGINT') {
+                    sigintHandler = handler;
+                }
+            });
+
+            await run([]);
+
+            // Should not throw when wsHandler is missing
+            expect(() => sigintHandler()).not.toThrow();
+            expect(mockClose).toHaveBeenCalled();
         });
     });
 });
